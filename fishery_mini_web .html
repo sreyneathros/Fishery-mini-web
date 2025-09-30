@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fisheries Report Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* Custom styles for better readability and aesthetics */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        th, td {
+            /* No default padding here, using Tailwind classes instead */
+        }
+        th {
+            background-color: #e5e7eb;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        .filter-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 15L12 18.75L15.75 15M8.25 8.25L12 4.5L15.75 8.25'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.25rem;
+        }
+        /* Style for the header and other text in the Khmer language */
+        .khmer-font {
+            font-family: 'Battambang', cursive;
+        }
+        
+        /* Custom styles for the dropdown with checkboxes */
+        .custom-select-container {
+            position: relative;
+            user-select: none;
+        }
+        .custom-select-button {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            cursor: pointer;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        .custom-select-dropdown {
+            position: absolute;
+            z-index: 10;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow-y: auto;
+            max-height: 200px;
+            display: none;
+        }
+        .custom-select-dropdown.open {
+            display: block;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .checkbox-item:hover {
+            background-color: #f3f4f6;
+        }
+        .checkbox-item input {
+            margin-right: 8px;
+        }
+        .filter-header {
+            padding: 8px 12px;
+            border-bottom: 1px solid #d1d5db;
+            font-weight: 600;
+        }
+        /* Style for the active tab */
+        .tab-active {
+            border-color: #3b82f6; /* Tailwind blue-500 */
+            color: #3b82f6;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+
+    <div class="container mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10">
+        <header class="text-center mb-10">
+            <h1 id="report-title" class="text-3xl md:text-5xl font-extrabold text-gray-800 khmer-font">របាយការណ៍ផលិតផលជលផលផ្គត់ផ្គង់</h1>
+            <p class="text-xl md:text-2xl text-gray-600 mt-2">Fisheries Product Supply Report</p>
+        </header>
+
+        <section class="mb-8 p-6 bg-gray-50 rounded-lg shadow-inner flex flex-wrap gap-4 items-center">
+            <div class="flex-1 min-w-[150px]">
+                <label for="year-select" class="block text-sm font-medium text-gray-700">Year:</label>
+                <select id="year-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 filter-select p-2">
+                    <option value="all">All</option>
+                </select>
+            </div>
+
+            <div class="flex-1 min-w-[150px]">
+                <label for="quarter-select" class="block text-sm font-medium text-gray-700">Quarter:</label>
+                <select id="quarter-select" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 filter-select p-2">
+                    <option value="all">All</option>
+                </select>
+            </div>
+
+            <div class="flex-1 min-w-[150px] custom-select-container">
+                <label class="block text-sm font-medium text-gray-700">Month:</label>
+                <div id="month-select-button" class="custom-select-button bg-white mt-1">
+                    <span id="month-display-text">All</span>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="month-select-dropdown" class="custom-select-dropdown">
+                    <div class="checkbox-item filter-header">
+                        <label class="font-bold cursor-pointer flex items-center">
+                            <input type="checkbox" id="month-all-checkbox" class="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out mr-2">
+                            Select All
+                        </label>
+                    </div>
+                    <div id="month-checkbox-list"></div>
+                </div>
+            </div>
+
+            <div class="flex-1 min-w-[150px] custom-select-container">
+                <label class="block text-sm font-medium text-gray-700">Province:</label>
+                <div id="province-select-button" class="custom-select-button bg-white mt-1">
+                    <span id="province-display-text">All</span>
+                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+                <div id="province-select-dropdown" class="custom-select-dropdown">
+                    <div class="checkbox-item filter-header">
+                        <label class="font-bold cursor-pointer flex items-center">
+                            <input type="checkbox" id="province-all-checkbox" class="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out mr-2">
+                            Select All
+                        </label>
+                    </div>
+                    <div id="province-checkbox-list"></div>
+                </div>
+            </div>
+            
+            <div class="flex-1 min-w-[150px] self-end mt-4">
+                <button id="download-pdf-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors shadow-md">
+                    Download as PDF
+                </button>
+            </div>
+        </section>
+
+        <div class="border-b border-gray-200 mb-6">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button id="tab-table" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-blue-500 text-blue-600 focus:outline-none transition-colors duration-200 tab-active" onclick="switchTab('table')">
+                    Table View (Filter)
+                </button>
+                <button id="tab-graph" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 focus:outline-none transition-colors duration-200" onclick="switchTab('graph')">
+                    Graph View
+                </button>
+            </nav>
+        </div>
+
+        <div id="reportContent">
+            <div id="content-table" class="tab-content">
+                <section class="overflow-x-auto rounded-lg shadow-md">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Year</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Quarter</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Month</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Province</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">Product</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">W1</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">W2</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">W3</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">W4</th>
+                                <th scope="col" class="py-1 px-1 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">W5</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-body" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="10" class="text-center py-4 text-gray-500">Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+            </div>
+
+            <div id="content-graph" class="tab-content hidden">
+                <div class="h-96 w-full p-4 bg-gray-50 rounded-lg shadow-md">
+                    <canvas id="productLineChart"></canvas>
+                </div>
+                <p id="graph-placeholder" class="text-center py-4 text-gray-500 hidden">Please select filters to generate the graph.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            let data = [];
+            let currentTab = 'table';
+            let productLineChart = null; // Variable to hold the Chart.js instance
+
+            // --- Step 1: Get references to all HTML elements ---
+            const yearSelect = document.getElementById('year-select');
+            const quarterSelect = document.getElementById('quarter-select');
+            const reportBody = document.getElementById('report-body');
+            const downloadBtn = document.getElementById('download-pdf-btn');
+            const graphCanvas = document.getElementById('productLineChart');
+            const graphPlaceholder = document.getElementById('graph-placeholder');
+            const tabTableBtn = document.getElementById('tab-table');
+            const tabGraphBtn = document.getElementById('tab-graph');
+            const contentTable = document.getElementById('content-table');
+            const contentGraph = document.getElementById('content-graph');
+            const reportTitleKhmer = document.querySelector('header h1').textContent;
+            const reportTitleEnglish = document.querySelector('header p').textContent;
+
+
+            // Month elements (and others, for brevity)
+            const monthButton = document.getElementById('month-select-button');
+            const monthDropdown = document.getElementById('month-select-dropdown');
+            const monthDisplayText = document.getElementById('month-display-text');
+            const monthAllCheckbox = document.getElementById('month-all-checkbox');
+            const monthCheckboxList = document.getElementById('month-checkbox-list');
+
+            const provinceButton = document.getElementById('province-select-button');
+            const provinceDropdown = document.getElementById('province-select-dropdown');
+            const provinceDisplayText = document.getElementById('province-display-text');
+            const provinceAllCheckbox = document.getElementById('province-all-checkbox');
+            const provinceCheckboxList = document.getElementById('province-checkbox-list');
+
+            // --- Tab Switching Logic ---
+            window.switchTab = (tab) => {
+                currentTab = tab;
+                if (tab === 'table') {
+                    contentTable.classList.remove('hidden');
+                    contentGraph.classList.add('hidden');
+                    tabTableBtn.classList.add('tab-active');
+                    tabGraphBtn.classList.remove('tab-active');
+                } else { // 'graph'
+                    contentTable.classList.add('hidden');
+                    contentGraph.classList.remove('hidden');
+                    tabTableBtn.classList.remove('tab-active');
+                    tabGraphBtn.classList.add('tab-active');
+                    if (data.length > 0) {
+                        renderGraph(getFilteredData());
+                    }
+                }
+            };
+            
+            // --- Utility Functions ---
+            const getUniqueValues = (field) => {
+                const values = data.map(item => item[field]);
+                if (field === 'Quarter') {
+                    return [...new Set(values)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+                }
+                return [...new Set(values)].sort();
+            };
+
+            const createCheckboxList = (container, values, type) => {
+                container.innerHTML = '';
+                values.forEach(value => {
+                    const div = document.createElement('div');
+                    div.className = 'checkbox-item';
+                    div.innerHTML = `
+                        <label class="cursor-pointer flex items-center">
+                            <input type="checkbox" value="${value}" class="form-checkbox h-4 w-4 text-indigo-600 transition duration-150 ease-in-out mr-2 ${type}-checkbox">
+                            <span class="khmer-font">${value}</span>
+                        </label>
+                    `;
+                    container.appendChild(div);
+                });
+            };
+
+            const updateDisplayText = (type) => {
+                const checkboxes = document.querySelectorAll(`.${type}-checkbox`);
+                const allCheckbox = document.getElementById(`${type}-all-checkbox`);
+                const displayText = document.getElementById(`${type}-display-text`);
+                
+                const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+                const totalCount = checkboxes.length;
+
+                if (selectedCount === 0 || selectedCount === totalCount) {
+                    displayText.textContent = "All";
+                    allCheckbox.checked = selectedCount === totalCount;
+                    if (selectedCount === 0 && totalCount > 0) {
+                        allCheckbox.checked = false;
+                    }
+                } else {
+                    displayText.textContent = `${selectedCount} selected`;
+                    allCheckbox.checked = false;
+                }
+            };
+
+            // --- Filtering Logic ---
+            const getFilteredData = () => {
+                const year = yearSelect.value;
+                const quarter = quarterSelect.value;
+                const selectedMonths = Array.from(document.querySelectorAll('.month-checkbox:checked')).map(cb => cb.value);
+                const selectedProvinces = Array.from(document.querySelectorAll('.province-checkbox:checked')).map(cb => cb.value);
+
+                return data.filter(item => {
+                    const yearMatch = (year === 'all' || item.Year == year);
+                    const quarterMatch = (quarter === 'all' || item.Quarter === quarter);
+                    const monthMatch = (selectedMonths.length === 0 || selectedMonths.includes(item.MonthName));
+                    const provinceMatch = (selectedProvinces.length === 0 || selectedProvinces.includes(item.Province));
+                    
+                    return yearMatch && quarterMatch && monthMatch && provinceMatch;
+                });
+            };
+
+            const applyFilters = () => {
+                const filtered = getFilteredData();
+                renderTable(filtered);
+                if (currentTab === 'graph') {
+                    renderGraph(filtered);
+                }
+            };
+            
+            // --- Function to render the table ---
+            const renderTable = (filteredData) => {
+                reportBody.innerHTML = '';
+                if (filteredData.length === 0) {
+                    const noDataRow = document.createElement('tr');
+                    noDataRow.innerHTML = `<td colspan="10" class="text-center py-4 text-gray-500">No data found.</td>`;
+                    reportBody.appendChild(noDataRow);
+                    return;
+                }
+                
+                // Use a grouping logic similar to the previous implementation
+                const groupedData = {};
+                filteredData.forEach(item => {
+                    const key = `${item.Year}-${item.Quarter}-${item.MonthName}-${item.Province}-${item.Product}`;
+                    if (!groupedData[key]) {
+                        groupedData[key] = { ...item };
+                    }
+                });
+
+                Object.values(groupedData).forEach(item => {
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-100 transition-colors';
+                    row.innerHTML = `
+                        <td class="text-center text-sm text-gray-700 py-1 px-1">${item.Year}</td>
+                        <td class="text-center text-sm text-gray-700 py-1 px-1">${item.Quarter}</td>
+                        <td class="text-center text-sm text-gray-700 khmer-font py-1 px-1">${item.MonthName}</td>
+                        <td class="text-center text-sm text-gray-700 khmer-font py-1 px-1">${item.Province}</td>
+                        <td class="text-center text-sm text-gray-700 khmer-font py-1 px-1">${item.Product}</td>
+                        <td class="text-center text-sm text-gray-700 py-1 px-1">${item.Week1.toFixed(2)}</td>
+                        <td class="text-center text-sm text-gray-700 py-1 px-1">${item.Week2.toFixed(2)}</td>
+                        <td class="text-center text-sm text-gray-700 py-1 px-1">${item.Week3.toFixed(2)}</td>
+                        <td class="text-center text-sm text-gray-700 py-1 px-1">${item.Week4.toFixed(2)}</td>
+                        <td class="text-center text-sm text-gray-700 py-1 px-1">${item.Week5.toFixed(2)}</td>
+                    `;
+                    reportBody.appendChild(row);
+                });
+            };
+
+        
+            
+            // --- Function to render the Line Graph (UPDATED for Multi-Year/Quarter grouping) ---
+            const renderGraph = (filteredData) => {
+                if (productLineChart) {
+                    productLineChart.destroy();
+                }
+
+                if (filteredData.length === 0) {
+                    graphPlaceholder.classList.remove('hidden');
+                    graphCanvas.classList.add('hidden');
+                    return;
+                }
+                
+                graphPlaceholder.classList.add('hidden');
+                graphCanvas.classList.remove('hidden');
+
+                const uniqueProducts = getUniqueValues('Product');
+                const weeksInMonthKeys = ['Week1', 'Week2', 'Week3', 'Week4', 'Week5'];
+                const weekLabels = ['W1', 'W2', 'W3', 'W4', 'W5'];
+                const monthOrder = {
+                    "មករា": 1, "កុម្ភៈ": 2, "មីនា": 3, "មេសា": 4, "ឧសភា": 5, "មិថុនា": 6, 
+                    "កក្កដា": 7, "សីហា": 8, "កញ្ញា": 9, "តុលា": 10, "វិច្ឆិកា": 11, "ធ្នូ": 12
+                };
+
+                // 1. Identify all unique Year-Month-Week combinations that contain data
+                const uniqueTimePoints = new Map(); // Key: '2025-5-1', Value: '2025 ឧសភាW1'
+
+                filteredData.forEach(item => {
+                    const year = item.Year;
+                    const fullMonth = item.MonthName;
+                    const monthNum = monthOrder[fullMonth];
+
+                    for (let i = 0; i < weeksInMonthKeys.length; i++) {
+                        const weekKey = weeksInMonthKeys[i]; // e.g., 'Week1'
+                        const weekNum = i + 1;
+                        
+                        // Check if the current item has a value in this week column
+                        if (item[weekKey] > 0) {
+                            // Create the unique, sortable key
+                            const sortableKey = `${year}-${monthNum}-${weekNum}`; 
+                            
+                            // Create the display label
+                            const displayLabel = `${year} ${fullMonth}${weekLabels[i]}`;
+
+                            // Only add to the map if it's a new time point
+                            if (!uniqueTimePoints.has(sortableKey)) {
+                                uniqueTimePoints.set(sortableKey, displayLabel);
+                            }
+                        }
+                    }
+                });
+
+                // 2. Sort the keys chronologically
+                const sortedKeys = Array.from(uniqueTimePoints.keys()).sort((a, b) => {
+                    // Split keys (e.g., '2025-5-1') into parts
+                    const [yearA, monthA, weekA] = a.split('-').map(Number);
+                    const [yearB, monthB, weekB] = b.split('-').map(Number);
+
+                    if (yearA !== yearB) return yearA - yearB;
+                    if (monthA !== monthB) return monthA - monthB;
+                    return weekA - weekB; // Secondary sort: Week Number
+                });
+                
+                // 3. Final Labels Array and Index Map for Chart.js
+                const labels = [];
+                const labelMap = new Map(); // Key: '2025-5-1', Value: Index in 'labels' array
+
+                sortedKeys.forEach((key, index) => {
+                    labels.push(uniqueTimePoints.get(key));
+                    labelMap.set(key, index);
+                });
+
+                // 4. Aggregate the supply data by Product and the sorted index
+                const aggregatedData = {};
+                uniqueProducts.forEach(product => {
+                    // Initialize the product's data array to match the length of the labels array
+                    aggregatedData[product] = new Array(labels.length).fill(0);
+                });
+
+                filteredData.forEach(item => {
+                    const product = item.Product;
+                    const year = item.Year;
+                    const fullMonth = item.MonthName;
+                    const monthNum = monthOrder[fullMonth];
+                    
+                    if (aggregatedData[product]) {
+                        for (let i = 0; i < weeksInMonthKeys.length; i++) {
+                            const weekKey = weeksInMonthKeys[i];
+                            const weekNum = i + 1;
+                            
+                            // Recreate the sortable key
+                            const sortableKey = `${year}-${monthNum}-${weekNum}`;
+                            const labelIndex = labelMap.get(sortableKey);
+                            
+                            // Check if this time point was included in the final labels list AND has data
+                            if (labelIndex !== undefined) {
+                                // Sum up the weekly value into the correct position on the new X-axis
+                                aggregatedData[product][labelIndex] += item[weekKey];
+                            }
+                        }
+                    }
+                });
+
+                // 5. Prepare and Render Chart.js
+                const colors = ['rgb(59, 130, 246)', 'rgb(234, 88, 12)', 'rgb(16, 185, 129)', 'rgb(124, 58, 237)'];
+                const datasets = uniqueProducts.map((product, index) => {
+                    const color = colors[index % colors.length];
+                    return {
+                        label: product,
+                        data: aggregatedData[product],
+                        borderColor: color,
+                        backgroundColor: color,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        borderWidth: 2,
+                    };
+                });
+                
+                const ctx = graphCanvas.getContext('2d');
+                productLineChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: `Weekly Supply Trend by Product (Total Time Points: ${labels.length})`,
+                                font: { size: 18 }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                            },
+                            legend: {
+                                position: 'bottom',
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Year - Month - Week'
+                                },
+                                ticks: {
+                                    autoSkip: true,
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Total Supply (Units)'
+                                },
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            };                  
+
+        
+            // --- Function to handle PDF download (FINAL: Combines Graph and Table) ---
+            const downloadPdf = async () => {
+                // 1. Pre-Download Checks and Setup
+                downloadBtn.textContent = 'Generating...';
+                downloadBtn.disabled = true;
+                
+                const filtered = getFilteredData();
+
+                if (filtered.length === 0) {
+                    alert("Cannot generate PDF: No data is currently filtered.");
+                    downloadBtn.textContent = 'Download as PDF';
+                    downloadBtn.disabled = false;
+                    return;
+                }
+
+                // IMPORTANT: 
+                // 1. Ensure the graph is rendered so we can capture its image
+                // 2. We use a small delay to allow the canvas drawing process to complete
+                if (!productLineChart) {
+                    // Calling renderGraph initializes the Chart.js object
+                    renderGraph(filtered); 
+                }
+                await new Promise(resolve => setTimeout(resolve, 100)); // Wait 100ms for canvas to draw
+
+                // 2. Capture Content
+                // Get the chart image as a data URL
+                const chartImage = productLineChart ? productLineChart.toBase64Image() : '';
+                
+                // Get the LIVE table content (header and body) from the DOM
+                const tableHeadHtml = document.querySelector('#content-table thead').outerHTML;
+                const tableBodyHtml = document.querySelector('#report-body').outerHTML; 
+
+                // 3. Create Combined PDF Content Container
+                const pdfContent = document.createElement('div');
+                pdfContent.id = 'pdf-export-container';
+                pdfContent.style.width = '100%';
+                
+                // --- Styles for the PDF (Simplified and Robust) ---
+                let pdfStyles = `
+                    <style>
+                        .pdf-container { padding: 0px 10px; font-family: 'Battambang', sans-serif; }
+                        h1 { font-size: 24px; text-align: center; margin-bottom: 5px; }
+                        h2 { font-size: 18px; text-align: center; margin-top: 0; color: #555; margin-bottom: 20px;}
+                        .section-header { font-size: 16px; font-weight: bold; margin-top: 25px; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+                        .khmer-font { font-family: 'Battambang', cursive; }
+                        
+                        /* Table specific styles for PDF (Crucial for rendering) */
+                        .pdf-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                        .pdf-table th, .pdf-table td { padding: 5px 3px; border: 1px solid #ccc; text-align: center; font-size: 9px; line-height: 1.2; }
+                        .pdf-table th { background-color: #f2f2f2; font-weight: bold; }
+                    </style>
+                `;
+
+                // --- Combine Header, Graph, and Table HTML ---
+                let combinedHtml = pdfStyles + `
+                    <div class="pdf-container">
+                        <h1>${reportTitleKhmer}</h1>
+                        <h2>${reportTitleEnglish}</h2>
+
+                        <div class="section-header">1. Weekly Supply Trend Graph</div>
+                        <div style="text-align: center; margin-bottom: 30px; page-break-after: avoid;">
+                            ${chartImage ? `<img src="${chartImage}" style="max-width: 95%; height: auto; border: 1px solid #ccc;"/>` : `<p>Graph data unavailable.</p>`}
+                        </div>
+
+                        <div class="section-header">2. Detailed Data Table</div>
+                        <table class="pdf-table">
+                            ${tableHeadHtml}
+                            ${tableBodyHtml}
+                        </table>
+                    </div>
+                `;
+
+                pdfContent.innerHTML = combinedHtml;
+                document.body.appendChild(pdfContent); 
+                
+                // 4. Generate PDF
+                const filename = `Fisheries_Report_Combined_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+                html2pdf(pdfContent, {
+                    margin: 10,
+                    filename: filename,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, logging: false, dpi: 192, letterRendering: true, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }, 
+                    pagebreak: { mode: 'avoid-all' }
+                }).then(() => {
+                    // 5. Clean up and Reset
+                    document.body.removeChild(pdfContent);
+                    downloadBtn.textContent = 'Download as PDF';
+                    downloadBtn.disabled = false;
+                }).catch(error => {
+                    console.error("PDF generation failed:", error);
+                    document.body.removeChild(pdfContent);
+                    downloadBtn.textContent = 'Download as PDF';
+                    downloadBtn.disabled = false;
+                    alert("PDF generation failed. Check console for details.");
+                });
+            };
+                 
+            // --- Data Fetch and Initialization ---
+            const fetchDataAndInitialize = async () => {
+                const n8nDataUrl = 'https://n8n.analyticalx.org/webhook/user_interactive';
+                try {
+                    const response = await fetch(n8nDataUrl);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const apiResponse = await response.json();
+                    
+                    if (apiResponse && apiResponse[0] && apiResponse[0].records) {
+                        data = apiResponse[0].records.map(item => ({
+                            ...item,
+                            Year: parseInt(item.Year, 10),
+                            Week1: parseFloat(item.Week1),
+                            Week2: parseFloat(item.Week2),
+                            Week3: parseFloat(item.Week3),
+                            Week4: parseFloat(item.Week4),
+                            Week5: parseFloat(item.Week5),
+                        }));
+                        
+                        // Populate filter controls
+                        const uniqueYears = getUniqueValues('Year');
+                        const uniqueQuarters = getUniqueValues('Quarter');
+                        const uniqueMonths = getUniqueValues('MonthName');
+                        const uniqueProvinces = getUniqueValues('Province');
+                        
+                        const createSingleOptions = (selectElement, values) => {
+                            selectElement.innerHTML = `<option value="all">All</option>`;
+                            values.forEach(value => {
+                                const option = document.createElement('option');
+                                option.value = value;
+                                option.textContent = value;
+                                selectElement.appendChild(option);
+                            });
+                        };
+                        createSingleOptions(yearSelect, uniqueYears);
+                        createSingleOptions(quarterSelect, uniqueQuarters);
+                        createCheckboxList(monthCheckboxList, uniqueMonths, 'month');
+                        createCheckboxList(provinceCheckboxList, uniqueProvinces, 'province');
+                        
+                        applyFilters();
+
+                        // --- Event Listeners Setup ---
+                        yearSelect.addEventListener('change', applyFilters);
+                        quarterSelect.addEventListener('change', applyFilters);
+
+                        monthButton.addEventListener('click', (e) => { e.stopPropagation(); monthDropdown.classList.toggle('open'); });
+                        provinceButton.addEventListener('click', (e) => { e.stopPropagation(); provinceDropdown.classList.toggle('open'); });
+                        document.addEventListener('click', (event) => {
+                            if (!monthDropdown.contains(event.target) && !monthButton.contains(event.target)) {
+                                monthDropdown.classList.remove('open');
+                            }
+                            if (!provinceDropdown.contains(event.target) && !provinceButton.contains(event.target)) {
+                                provinceDropdown.classList.remove('open');
+                            }
+                        });
+
+                        const setupAllCheckbox = (allCheckbox, className, type) => {
+                            allCheckbox.addEventListener('change', (e) => {
+                                document.querySelectorAll(`.${className}`).forEach(cb => {
+                                    cb.checked = e.target.checked;
+                                });
+                                updateDisplayText(type);
+                                applyFilters();
+                            });
+                        };
+                        setupAllCheckbox(monthAllCheckbox, 'month-checkbox', 'month');
+                        setupAllCheckbox(provinceAllCheckbox, 'province-checkbox', 'province');
+
+                        const setupIndividualCheckboxes = (className, type) => {
+                            document.querySelectorAll(`.${className}`).forEach(cb => {
+                                cb.addEventListener('change', () => {
+                                    updateDisplayText(type);
+                                    const allChecked = Array.from(document.querySelectorAll(`.${className}`)).every(c => c.checked);
+                                    document.getElementById(`${type}-all-checkbox`).checked = allChecked;
+                                    applyFilters();
+                                });
+                            });
+                        };
+                        setupIndividualCheckboxes('month-checkbox', 'month');
+                        setupIndividualCheckboxes('province-checkbox', 'province');
+
+                        downloadBtn.addEventListener('click', downloadPdf);
+                        
+                    } else {
+                        throw new Error("Invalid data format received from the API.");
+                    }
+                } catch (error) {
+                    console.error("Could not fetch data:", error);
+                    reportBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-red-500">Failed to load data. Please check the console for details.</td></tr>`;
+                    graphPlaceholder.textContent = "Failed to load data for the graph.";
+                    graphPlaceholder.classList.remove('hidden');
+                    graphCanvas.classList.add('hidden');
+                }
+            };
+            fetchDataAndInitialize();
+        })();
+    </script>
+</body>
+</html>
